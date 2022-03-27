@@ -600,27 +600,27 @@ void set_fastest(int64_t tick) {
 /*thread_sleep function makes running thread to blocked thread*/
 void thread_sleep(int64_t tick) {
 	struct thread* cur = thread_current();
-	if(cur == idle_thread){
+	if(cur == idle_thread){ /* if current thread is idle thread then stop*/
 		return;
 	}
-	enum intr_level old_level = intr_disable();
-	set_fastest(cur->wakeup_tick = tick);
-	list_push_back(&sleep_list, &cur->elem);
-	thread_block();
-	intr_set_level(old_level);
+	enum intr_level old_level = intr_disable(); /*ignore interrupts during blocking*/
+	set_fastest(cur->wakeup_tick = tick); /*update the value of fastest*/
+	list_push_back(&sleep_list, &cur->elem); /*put current thread to sleep list*/
+	thread_block(); /*blocking thread*/
+	intr_set_level(old_level); /*after this thread awake then make it interrupt-acceptable*/
 
 }
 /*thread_awake function makes blocked thread to running thread*/
 void thread_awake(int64_t tick) {
 	struct list_elem* sleep;
-	fastest = INT64_MAX;
+	fastest = INT64_MAX; /*initialize the value of fastest*/
 	for(sleep = list_begin(&sleep_list); sleep != list_end(&sleep_list);) {
 		struct thread* t = list_entry(sleep, struct thread, elem);
-		if(t->wakeup_tick > tick) {
+		if(t->wakeup_tick > tick) { /*if timer is not over then traverse next thread in sleep list and update the value of fastest*/
 			sleep = list_next(sleep);
 			set_fastest(t->wakeup_tick);
 		}
-		else {
+		else { /*if timer is over then remove from sleep list and unblock the thread to go to tail of ready list*/
 			sleep = list_remove(&t->elem);
 			thread_unblock(t);
 		}
