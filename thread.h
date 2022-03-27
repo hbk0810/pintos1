@@ -80,6 +80,9 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+/*declaration of global variables which are refered to newly implemented functions*/
+static struct list sleep_list;
+static int64_t fastest;
 struct thread
   {
     /* Owned by thread.c. */
@@ -100,8 +103,14 @@ struct thread
 
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
+	/*store tick for setting awake time of each thread*/
+	int64_t wakeup_tick;
   };
-
+/*declaration of newly implemented functions in thread.c*/
+int64_t get_fastest(void);
+void set_fastest(int64_t);
+void thread_sleep(int64_t);
+void thread_awake(int64_t);
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.
    Controlled by kernel command-line option "-o mlfqs". */

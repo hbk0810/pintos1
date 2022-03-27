@@ -1,4 +1,4 @@
-#include "threads/thread.h"
+#include "thread.h"
 #include <debug.h>
 #include <stddef.h>
 #include <random.h>
@@ -98,6 +98,8 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+  /*initialization of global variable list which will store threads waiting their alarm*/
+  list_init(&sleep_list);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -585,3 +587,43 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+/*get_fastest function returns global variable fastest*/
+int64_t get_fastest(void) {
+	return fastest;
+}
+/*set_fasetst function determines whether current fastest is still valid or not. if not, it changes fastest into new fastest*/
+void set_fastest(int64_t tick) {
+	if(tick < fastest) {
+		fastest = tick;
+	}
+}
+/*thread_sleep function makes running thread to blocked thread*/
+void thread_sleep(int64_t tick) {
+	struct thread* cur = thread_current();
+	if(cur == idle_thread){
+		return;
+	}
+	enum intr_level old_level = intr_disable();
+	set_fastest(cur->wakeup_tick = tick);
+	list_push_back(&sleep_list, &cur->elem);
+	thread_block();
+	intr_set_level(old_level);
+
+}
+/*thread_awake function makes blocked thread to running thread*/
+void thread_awake(int64_t tick) {
+	struct list_elem* sleep;
+	fastest = INT64_MAX;
+	for(sleep = list_begin(&sleep_list); sleep != list_end(&sleep_list);) {
+		struct thread* t = list_entry(sleep, struct thread, elem);
+		if(t->wakeup_tick > tick) {
+			sleep = list_next(sleep);
+			set_fastest(t->wakeup_tick);
+		}
+		else {
+			sleep = list_remove(&t->elem);
+			thread_unblock(t);
+		}
+	}
+}
+
